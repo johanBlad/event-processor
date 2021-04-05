@@ -26,7 +26,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: event-processor
-      CodeUri: s3://event-processor-sqs/e41fe6fb98606eca98a9a91898079efe
+      CodeUri: s3://event-processor-sqs/c70f27e0e2f1f9aac8ea246def4c5d91
       Policies:
       - AmazonSQSFullAccess
       - DynamoDBCrudPolicy:
@@ -52,32 +52,42 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: event-generator
-      CodeUri: s3://event-processor-sqs/f08061d11106bf1ed41439402639a643
+      CodeUri: s3://event-processor-sqs/df79b2f516f562515beb38151153a6ee
       Environment:
         Variables:
-          TABLE_NAME:
-            Fn::Sub: https://${API}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+          QUEUE_PROXY_ENDPOINT:
+            Fn::Sub: https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/
       Events:
-        InvokeGenerator:
+        ApiEvent:
           Type: Api
           Properties:
+            Path: /
+            Method: get
             RestApiId:
-              Ref: API
-            Path: /hello
-            Method: GET
+              Ref: ApiGatewayApi
+      Layers:
+      - Ref: GeneratorLayer
+  GeneratorLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: event-processor-generator
+      Description: Dependencies for the blank sample app.
+      ContentUri: s3://event-processor-sqs/a3a4c927667118ca8848078baf43574c
+      CompatibleRuntimes:
+      - python3.8
   Table:
     Type: AWS::Serverless::SimpleTable
     Properties:
       PrimaryKey:
-        Name: greeting
+        Name: eventId
         Type: String
       ProvisionedThroughput:
         ReadCapacityUnits: 2
         WriteCapacityUnits: 2
-  API:
+  ApiGatewayApi:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: Prod
+      StageName: prod
       Name: event-processor-sqs-api
       DefinitionBody:
         openapi: 3.0.0
@@ -146,9 +156,9 @@ Resources:
           - sts:AssumeRole
 Outputs:
   PostEndpointApi:
-    Description: API Gateway endpoint URL for Prod stage for Post Endpoint
+    Description: API Gateway endpoint URL for prod stage for Post Endpoint
     Value:
-      Fn::Sub: https://${API}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+      Fn::Sub: https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/
   Processor:
     Description: 1st Lambda Function ARN
     Value:

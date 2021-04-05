@@ -51,29 +51,40 @@ Resources:
       CodeUri: lambdas/generator/
       Environment:
         Variables:
-          TABLE_NAME: !Sub "https://${API}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+          QUEUE_PROXY_ENDPOINT: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
       Events: 
-        InvokeGenerator:
+        ApiEvent:
           Type: Api
           Properties:
-            RestApiId: !Ref API
-            Path: /hello
-            Method: GET
+            Path: /
+            Method: get
+            RestApiId: !Ref ApiGatewayApi
+      Layers:
+        - !Ref GeneratorLayer
+  GeneratorLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: event-processor-generator
+      Description: Dependencies for the blank sample app.
+      ContentUri: lambdas/layers/generator-deps/
+      CompatibleRuntimes:
+        - python3.8
+
 
   Table:
     Type: AWS::Serverless::SimpleTable
     Properties:
       PrimaryKey:
-        Name: greeting
+        Name: eventId
         Type: String
       ProvisionedThroughput:
         ReadCapacityUnits: 2
         WriteCapacityUnits: 2
 
-  API:
+  ApiGatewayApi:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: Prod
+      StageName: prod
       Name: event-processor-sqs-api
       DefinitionBody:
         openapi: "3.0.0"
@@ -150,8 +161,8 @@ Resources:
 
 Outputs:
   PostEndpointApi:
-    Description: "API Gateway endpoint URL for Prod stage for Post Endpoint"
-    Value: !Sub "https://${API}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Description: "API Gateway endpoint URL for prod stage for Post Endpoint"
+    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
   Processor:
     Description: "1st Lambda Function ARN"
     Value: !GetAtt Processor.Arn
