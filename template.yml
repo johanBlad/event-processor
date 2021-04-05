@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+# Setting global properties
+Globals:
+  # This applies to all AWS::Serverless::Function
+  Function:
+    Timeout: 30
+    Runtime: python3.8
+    Handler: app.lambda_handler
+    #Environment:
+    #  Variables:
+    #    FIRST_INTERNAL_QUEUE_URL: !Ref FirstInternalQueue
+
+Resources:
+  InputQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 30
+      QueueName: event-processor-queue-main
+      RedrivePolicy: 
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 2
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 30
+      QueueName: event-processor-queue-dlq
+
+  Processor:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: event-processor
+      CodeUri: lambdas/processor/
+      Policies: 
+        - AmazonSQSFullAccess 
+      Events: 
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt InputQueue.Arn 
+            BatchSize: 1 
+            Enabled: true
