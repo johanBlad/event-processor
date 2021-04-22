@@ -7,6 +7,7 @@ import random
 import aiohttp
 import asyncio
 
+
 def respond(err, res=None):
     return {
         "statusCode": "400" if err else "200",
@@ -21,33 +22,33 @@ def generate_payload():
     return json.dumps({"key": f"value-{random.randint(1,9)}"})
 
 
-async def call(session, url, payload):
+async def call(session, url, payload, t):
+    await asyncio.sleep(t * random.randint(0, 1000) / 1000)
     try:
         async with session.post(
             url,
         ) as response:
-            read = await response.read()
+            await response.read()
             status = response.status
-            print(datetime.now(), status, payload)
+            print(datetime.now(), status, payload, sep='\t')
     except aiohttp.client_exceptions.ClientConnectorError as e:
         print(f"Error fetching [{url}]:", e)
 
 
-async def generate_calls(n):
+async def generate_calls(url, n, t):
     async with aiohttp.ClientSession() as session:
         ret = await asyncio.gather(
-            *[
-                call(session, "http://httpbin.org/post", generate_payload())
-                for i in range(n)
-            ]
+            *[call(session, url, generate_payload(), t) for i in range(n)]
         )
         print(f"Made {len(ret)} calls")
-        return ret
 
 
 def main_local():
+    CALLS = 10
+    SECONDS = 5
+    URL = "http://httpbin.org/post"
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(generate_calls(2))
+    loop.run_until_complete(generate_calls(URL, CALLS, SECONDS))
 
 
 if __name__ == "__main__":
