@@ -28,7 +28,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: event-processor
-      CodeUri: lambdas/processor/
+      CodeUri: lambdas/processor.py
+      Handler: processor.lambda_handler
       Policies:
         - AmazonSQSFullAccess
         - DynamoDBCrudPolicy:
@@ -42,16 +43,21 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt InputQueue.Arn
-            BatchSize: 1
+            BatchSize: 5
             Enabled: true
+      Layers:
+        - !Ref ProcessorLayer
   Generator:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: event-generator
-      CodeUri: lambdas/generator/
+      CodeUri: lambdas/generator.py
+      Handler: generator.lambda_handler
       Environment:
         Variables:
           QUEUE_PROXY_ENDPOINT: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+          NUM_CALLS: 7
+          NUM_SECONDS: 4
       Events: 
         ApiEvent:
           Type: Api
@@ -59,13 +65,28 @@ Resources:
             Path: /
             Method: get
             RestApiId: !Ref ApiGatewayApi
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0/1 * * * ? *)
+            Name: TestSchedule
+            Description: test schedule
+            Enabled: True
       Layers:
         - !Ref GeneratorLayer
   GeneratorLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: event-processor-generator
-      Description: Dependencies for the blank sample app.
+      LayerName: event-generator
+      Description: Dependencies for event-generator.
+      ContentUri: lambdas/layers/generator-deps/
+      CompatibleRuntimes:
+        - python3.8
+  ProcessorLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: event-processor
+      Description: Dependencies for event processor.
       ContentUri: lambdas/layers/generator-deps/
       CompatibleRuntimes:
         - python3.8
@@ -75,7 +96,7 @@ Resources:
     Type: AWS::Serverless::SimpleTable
     Properties:
       PrimaryKey:
-        Name: eventId
+        Name: id
         Type: String
       ProvisionedThroughput:
         ReadCapacityUnits: 2
