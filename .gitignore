@@ -1,3 +1,4 @@
 lambdas/layers/*/python
+lambdas/layers/*/python.zip
 **/__pycache__
 dist/*
