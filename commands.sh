@@ -23,3 +23,21 @@ aws cloudformation create-stack \
 
 aws cloudformation delete-stack \
     --stack-name event-processor-sqs 
+
+# Layers
+cd lambdas/layers/generator-deps/
+cd lambdas/layers/processor-deps/
+
+rm -rf ./python; rm python.zip
+pip install -r requirements.txt -t ./python --upgrade; cp -r ../../common ./python
+zip -r python.zip python/
+
+cd ../../../
+
+# aws s3 cp python.zip s3://event-processor-sqs/layers/generator/python.zip
+# aws lambda publish-layer-version --layer-name event-generator  \
+# --content S3Bucket=event-processor-sqs,S3Key=layers/generator/python.zip --compatible-runtimes python3.7 python3.8
+
+# aws s3 cp python.zip s3://event-processor-sqs/layers/processor/python.zip
+# aws lambda publish-layer-version --layer-name event-processor  \
+# --content S3Bucket=event-processor-sqs,S3Key=layers/processor/python.zip --compatible-runtimes python3.7 python3.8
